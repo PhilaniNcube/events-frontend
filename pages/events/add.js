@@ -1,13 +1,14 @@
+import { parseCookies } from '@/helpers/index';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import { useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
-import { ToastContainer, toast } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
-import { API_URL } from '@/config/index';
 import Layout from '@/components/Layout';
+import { API_URL } from '@/config/index';
 import styles from '@/styles/Form.module.css';
 
-export default function AddEventPage() {
+export default function AddEventPage({ token }) {
   const [values, setValues] = useState({
     name: '',
     performers: '',
@@ -22,24 +23,31 @@ export default function AddEventPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     // Validation
     const hasEmptyFields = Object.values(values).some(
       (element) => element === '',
     );
+
     if (hasEmptyFields) {
-      toast.error('Please fill in empty fields');
+      toast.error('Please fill in all fields');
     }
 
     const res = await fetch(`${API_URL}/events`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify(values),
     });
 
     if (!res.ok) {
-      toast.error('Something went wrong');
+      if (res.status === 403 || res.status === 401) {
+        toast.error('No token included');
+        return;
+      }
+      toast.error('Something Went Wrong');
     } else {
       const evt = await res.json();
       router.push(`/events/${evt.slug}`);
@@ -119,6 +127,7 @@ export default function AddEventPage() {
             />
           </div>
         </div>
+
         <div>
           <label htmlFor="description">Event Description</label>
           <textarea
@@ -134,4 +143,14 @@ export default function AddEventPage() {
       </form>
     </Layout>
   );
+}
+
+export async function getServerSideProps({ req }) {
+  const { token } = parseCookies(req);
+
+  return {
+    props: {
+      token,
+    },
+  };
 }
